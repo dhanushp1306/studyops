@@ -4,14 +4,14 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from app.database import engine, Base, SessionLocal
-from app.routes import health, tasks, calendar, study_plans, agent_activity, approvals, seed
+from app.routes import health, tasks, subjects, calendar, study_sessions, study_plans, agent_activity, approvals, seed
 from app.seed import seed_database
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     # Startup: Ensure database tables exist
     Base.metadata.create_all(bind=engine)
-    # Check if DB is empty, if so, seed automatically
+    # Check if DB is empty or needs initial seed
     db = SessionLocal()
     try:
         from app.models import Task
@@ -45,8 +45,10 @@ app.add_middleware(
 
 # Register API Routers
 app.include_router(health.router)
+app.include_router(subjects.router)
 app.include_router(tasks.router)
 app.include_router(calendar.router)
+app.include_router(study_sessions.router)
 app.include_router(study_plans.router)
 app.include_router(agent_activity.router)
 app.include_router(approvals.router)

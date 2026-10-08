@@ -1,32 +1,37 @@
 import React, { useState } from 'react';
-import { X, Plus, Calendar, Clock, BookOpen } from 'lucide-react';
-import { Subject, PriorityLevel } from '../types';
+import { X, Save, Clock, Percent, AlertCircle } from 'lucide-react';
+import { Task, Subject, PriorityLevel, TaskStatus } from '../types';
 import { studyopsApi } from '../api/client';
 
-interface CreateTaskModalProps {
-  isOpen: boolean;
+interface EditTaskModalProps {
+  task: Task | null;
   subjects: Subject[];
+  isOpen: boolean;
   onClose: () => void;
   onSuccess: () => void;
 }
 
-export const CreateTaskModal: React.FC<CreateTaskModalProps> = ({
-  isOpen,
+export const EditTaskModal: React.FC<EditTaskModalProps> = ({
+  task,
   subjects,
+  isOpen,
   onClose,
   onSuccess
 }) => {
-  const [title, setTitle] = useState('');
-  const [subjectId, setSubjectId] = useState<string>('');
-  const [description, setDescription] = useState('');
-  const [estimatedEffort, setEstimatedEffort] = useState('3.0');
-  const [deadline, setDeadline] = useState('');
-  const [priority, setPriority] = useState<PriorityLevel>('high');
-  const [progress, setProgress] = useState(0);
+  if (!isOpen || !task) return null;
+
+  const [title, setTitle] = useState(task.title);
+  const [description, setDescription] = useState(task.description || '');
+  const [subjectId, setSubjectId] = useState<string>(task.subject_id ? String(task.subject_id) : '');
+  const [priority, setPriority] = useState<PriorityLevel>(task.priority);
+  const [status, setStatus] = useState<TaskStatus>(task.status);
+  const [progress, setProgress] = useState<number>(task.progress || 0);
+  const [estimatedEffort, setEstimatedEffort] = useState<string>(String(task.estimated_effort || 2.0));
+  const [deadline, setDeadline] = useState<string>(
+    task.deadline ? new Date(task.deadline).toISOString().slice(0, 16) : ''
+  );
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [errorMsg, setErrorMsg] = useState('');
-
-  if (!isOpen) return null;
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -37,25 +42,24 @@ export const CreateTaskModal: React.FC<CreateTaskModalProps> = ({
     try {
       const selectedSubject = subjects.find(s => s.id === parseInt(subjectId));
 
-      await studyopsApi.createTask({
+      await studyopsApi.updateTask(task.id, {
         title,
-        subject_id: subjectId ? parseInt(subjectId) : undefined,
-        course_code: selectedSubject?.code || 'CS301',
-        course_name: selectedSubject?.name,
         description,
-        estimated_effort: parseFloat(estimatedEffort) || 2.0,
-        deadline: new Date(deadline).toISOString(),
-        due_date: new Date(deadline).toISOString(),
+        subject_id: subjectId ? parseInt(subjectId) : undefined,
+        course_code: selectedSubject?.code || task.course_code,
+        course_name: selectedSubject?.name || task.course_name,
         priority,
+        status: progress >= 100 ? 'completed' : status,
         progress: Number(progress),
-        status: progress >= 100 ? 'completed' : 'pending'
+        estimated_effort: parseFloat(estimatedEffort) || 2.0,
+        deadline: new Date(deadline).toISOString()
       });
 
       onSuccess();
       onClose();
     } catch (err: any) {
-      console.error("Failed to create task", err);
-      setErrorMsg(err?.response?.data?.detail || "Failed to create assignment");
+      console.error("Failed to update task", err);
+      setErrorMsg(err?.response?.data?.detail || "Failed to update assignment");
     } finally {
       setIsSubmitting(false);
     }
@@ -66,8 +70,8 @@ export const CreateTaskModal: React.FC<CreateTaskModalProps> = ({
       <div className="glass-panel w-full max-w-lg p-6 rounded-2xl border-slate-700 bg-slate-900 shadow-2xl space-y-5">
         <div className="flex items-center justify-between border-b border-slate-800 pb-3">
           <h3 className="font-heading font-bold text-lg text-slate-100 flex items-center gap-2">
-            <Plus className="w-5 h-5 text-emerald-400" />
-            <span>Add New CS Assignment</span>
+            <Save className="w-5 h-5 text-emerald-400" />
+            <span>Edit Assignment & Progress</span>
           </h3>
           <button
             onClick={onClose}
@@ -85,13 +89,12 @@ export const CreateTaskModal: React.FC<CreateTaskModalProps> = ({
 
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>
-            <label className="text-xs font-semibold text-slate-300 block mb-1">Assignment Title *</label>
+            <label className="text-xs font-semibold text-slate-300 block mb-1">Title *</label>
             <input
               type="text"
               required
               value={title}
               onChange={(e) => setTitle(e.target.value)}
-              placeholder="e.g. DAA Assignment 4 - Dynamic Programming"
               className="w-full glass-input px-3.5 py-2.5 rounded-xl text-xs"
             />
           </div>
@@ -112,6 +115,41 @@ export const CreateTaskModal: React.FC<CreateTaskModalProps> = ({
             </div>
 
             <div>
+              <label className="text-xs font-semibold text-slate-300 block mb-1">Priority</label>
+              <select
+                value={priority}
+                onChange={(e) => setPriority(e.target.value as PriorityLevel)}
+                className="w-full glass-input px-3.5 py-2.5 rounded-xl text-xs bg-slate-900 border-slate-700"
+              >
+                <option value="high">High Priority</option>
+                <option value="medium">Medium Priority</option>
+                <option value="low">Low Priority</option>
+              </select>
+            </div>
+          </div>
+
+          {/* Progress Slider 0 - 100% */}
+          <div className="p-4 rounded-xl bg-slate-950 border border-slate-800 space-y-2">
+            <div className="flex items-center justify-between text-xs">
+              <span className="font-semibold text-slate-300 flex items-center gap-1">
+                <Percent className="w-3.5 h-3.5 text-emerald-400" />
+                <span>Completion Progress:</span>
+              </span>
+              <span className="font-mono font-bold text-emerald-400">{progress}%</span>
+            </div>
+            <input
+              type="range"
+              min="0"
+              max="100"
+              step="5"
+              value={progress}
+              onChange={(e) => setProgress(Number(e.target.value))}
+              className="w-full h-2 rounded-lg bg-slate-800 accent-emerald-500 cursor-pointer"
+            />
+          </div>
+
+          <div className="grid grid-cols-2 gap-3">
+            <div>
               <label className="text-xs font-semibold text-slate-300 block mb-1">Est. Effort (Hours)</label>
               <input
                 type="number"
@@ -120,6 +158,20 @@ export const CreateTaskModal: React.FC<CreateTaskModalProps> = ({
                 onChange={(e) => setEstimatedEffort(e.target.value)}
                 className="w-full glass-input px-3.5 py-2.5 rounded-xl text-xs"
               />
+            </div>
+
+            <div>
+              <label className="text-xs font-semibold text-slate-300 block mb-1">Status</label>
+              <select
+                value={status}
+                onChange={(e) => setStatus(e.target.value as TaskStatus)}
+                className="w-full glass-input px-3.5 py-2.5 rounded-xl text-xs bg-slate-900 border-slate-700"
+              >
+                <option value="pending">Pending</option>
+                <option value="in_progress">In Progress</option>
+                <option value="completed">Completed</option>
+                <option value="overdue">Overdue</option>
+              </select>
             </div>
           </div>
 
@@ -135,32 +187,11 @@ export const CreateTaskModal: React.FC<CreateTaskModalProps> = ({
           </div>
 
           <div>
-            <label className="text-xs font-semibold text-slate-300 block mb-1">Priority</label>
-            <div className="grid grid-cols-3 gap-2">
-              {(['high', 'medium', 'low'] as PriorityLevel[]).map((p) => (
-                <button
-                  key={p}
-                  type="button"
-                  onClick={() => setPriority(p)}
-                  className={`py-2 rounded-xl text-xs font-semibold uppercase border transition-all ${
-                    priority === p 
-                      ? 'bg-emerald-500/20 text-emerald-300 border-emerald-500/40' 
-                      : 'bg-slate-800 text-slate-400 border-slate-700'
-                  }`}
-                >
-                  {p}
-                </button>
-              ))}
-            </div>
-          </div>
-
-          <div>
             <label className="text-xs font-semibold text-slate-300 block mb-1">Description / Notes</label>
             <textarea
               rows={2}
               value={description}
               onChange={(e) => setDescription(e.target.value)}
-              placeholder="Key problems, required algorithm implementations, submission requirements..."
               className="w-full glass-input p-3 rounded-xl text-xs resize-none"
             />
           </div>
@@ -179,7 +210,7 @@ export const CreateTaskModal: React.FC<CreateTaskModalProps> = ({
               disabled={isSubmitting}
               className="px-5 py-2 rounded-xl bg-gradient-to-r from-emerald-500 to-cyan-500 text-slate-950 font-bold text-xs shadow-lg shadow-emerald-500/20"
             >
-              {isSubmitting ? 'Creating...' : 'Save Assignment'}
+              {isSubmitting ? 'Updating...' : 'Update Assignment'}
             </button>
           </div>
         </form>

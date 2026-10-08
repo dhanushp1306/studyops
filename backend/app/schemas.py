@@ -2,17 +2,47 @@ from datetime import datetime
 from typing import List, Optional, Any, Dict
 from pydantic import BaseModel, Field
 
+# --- Subject Schemas ---
+class SubjectBase(BaseModel):
+    name: str
+    code: str
+    description: Optional[str] = None
+    color: str = "#10b981"
+    target_hours_per_week: float = 5.0
+
+class SubjectCreate(SubjectBase):
+    pass
+
+class SubjectUpdate(BaseModel):
+    name: Optional[str] = None
+    code: Optional[str] = None
+    description: Optional[str] = None
+    color: Optional[str] = None
+    target_hours_per_week: Optional[float] = None
+
+class SubjectResponse(SubjectBase):
+    id: int
+    created_at: datetime
+    updated_at: datetime
+
+    class Config:
+        from_attributes = True
+
+
 # --- Task Schemas ---
 class TaskBase(BaseModel):
     title: str
     description: Optional[str] = None
-    course_code: str
+    subject_id: Optional[int] = None
+    course_code: Optional[str] = "CS301"
     course_name: Optional[str] = None
-    priority: str = "medium"
-    status: str = "pending"
-    estimated_hours: float = 2.0
+    priority: str = "medium" # high, medium, low
+    status: str = "pending" # pending, in_progress, completed, overdue
+    progress: float = Field(default=0.0, ge=0.0, le=100.0) # 0.0 to 100.0%
+    estimated_effort: float = Field(default=2.0, gt=0.0) # hours
     completed_hours: float = 0.0
-    due_date: datetime
+    deadline: datetime
+    due_date: Optional[datetime] = None
 
 class TaskCreate(TaskBase):
     pass
@@ -20,16 +50,21 @@ class TaskCreate(TaskBase):
 class TaskUpdate(BaseModel):
     title: Optional[str] = None
     description: Optional[str] = None
+    subject_id: Optional[int] = None
     course_code: Optional[str] = None
     course_name: Optional[str] = None
     priority: Optional[str] = None
     status: Optional[str] = None
-    estimated_hours: Optional[float] = None
+    progress: Optional[float] = Field(default=None, ge=0.0, le=100.0)
+    estimated_effort: Optional[float] = None
     completed_hours: Optional[float] = None
+    deadline: Optional[datetime] = None
     due_date: Optional[datetime] = None
 
 class TaskResponse(TaskBase):
     id: int
+    due_date: datetime
+    subject: Optional[SubjectResponse] = None
     created_at: datetime
     updated_at: datetime
 
@@ -41,6 +76,7 @@ class TaskResponse(TaskBase):
 class CalendarEventBase(BaseModel):
     title: str
     event_type: str = "study_session"
+    subject_id: Optional[int] = None
     course_code: Optional[str] = None
     start_time: datetime
     end_time: datetime
@@ -54,6 +90,7 @@ class CalendarEventCreate(CalendarEventBase):
 class CalendarEventUpdate(BaseModel):
     title: Optional[str] = None
     event_type: Optional[str] = None
+    subject_id: Optional[int] = None
     course_code: Optional[str] = None
     start_time: Optional[datetime] = None
     end_time: Optional[datetime] = None
@@ -63,7 +100,42 @@ class CalendarEventUpdate(BaseModel):
 
 class CalendarEventResponse(CalendarEventBase):
     id: int
+    subject: Optional[SubjectResponse] = None
     created_at: datetime
+
+    class Config:
+        from_attributes = True
+
+
+# --- Study Session Schemas ---
+class StudySessionBase(BaseModel):
+    title: str
+    subject_id: int
+    task_id: Optional[int] = None
+    start_time: datetime
+    end_time: datetime
+    duration_minutes: int = 60
+    status: str = "scheduled"
+    notes: Optional[str] = None
+
+class StudySessionCreate(StudySessionBase):
+    pass
+
+class StudySessionUpdate(BaseModel):
+    title: Optional[str] = None
+    subject_id: Optional[int] = None
+    task_id: Optional[int] = None
+    start_time: Optional[datetime] = None
+    end_time: Optional[datetime] = None
+    duration_minutes: Optional[int] = None
+    status: Optional[str] = None
+    notes: Optional[str] = None
+
+class StudySessionResponse(StudySessionBase):
+    id: int
+    subject: Optional[SubjectResponse] = None
+    created_at: datetime
+    updated_at: datetime
 
     class Config:
         from_attributes = True
@@ -91,7 +163,7 @@ class StudyPlanResponse(StudyPlanBase):
         from_attributes = True
 
 
-# --- Agent Activity Schemas ---
+# --- Agent Activity & Approval Schemas ---
 class AgentActivityBase(BaseModel):
     run_id: str
     user_request: str
@@ -113,7 +185,6 @@ class AgentActivityResponse(AgentActivityBase):
         from_attributes = True
 
 
-# --- Agent Approval Schemas ---
 class AgentApprovalBase(BaseModel):
     activity_id: Optional[int] = None
     action_type: str

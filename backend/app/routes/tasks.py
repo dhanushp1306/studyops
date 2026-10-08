@@ -2,9 +2,8 @@ from typing import List, Optional
 from datetime import datetime, timedelta
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy.orm import Session
-from sqlalchemy import func
 from app.database import get_db
-from app.models import Task, CalendarEvent, StudyPlan, AgentApproval
+from app.models import Task, Subject, CalendarEvent, StudyPlan, AgentApproval
 from app.schemas import TaskResponse, TaskCreate, TaskUpdate, DashboardStatsResponse
 
 router = APIRouter(prefix="/api", tags=["Tasks"])
@@ -12,6 +11,7 @@ router = APIRouter(prefix="/api", tags=["Tasks"])
 @router.get("/tasks", response_model=List[TaskResponse])
 def get_tasks(
     status: Optional[str] = None,
+    subject_id: Optional[int] = None,
     course_code: Optional[str] = None,
     priority: Optional[str] = None,
     db: Session = Depends(get_db)
@@ -19,15 +19,32 @@ def get_tasks(
     query = db.query(Task)
     if status:
         query = query.filter(Task.status == status)
+    if subject_id:
+        query = query.filter(Task.subject_id == subject_id)
     if course_code:
         query = query.filter(Task.course_code == course_code)
     if priority:
         query = query.filter(Task.priority == priority)
-    return query.order_by(Task.due_date.asc()).all()
+    return query.order_by(Task.deadline.asc()).all()
 
 @router.post("/tasks", response_model=TaskResponse, status_code=status.HTTP_201_CREATED)
 def create_task(task_in: TaskCreate, db: Session = Depends(get_db)):
-    task = Task(**task_in.model_dump())
+    task_data = task_in.model_dump()
+    
+    # Ensure deadline and due_date are synchronized
+    if not task_data.get("deadline") and task_data.get("due_date"):
+        task_data["deadline"] = task_data["due_date"]
+    elif task_data.get("deadline") and not task_data.get("due_date"):
+        task_data["due_date"] = task_data["deadline"]
+
+    # If subject_id provided, sync course_code
+    if task_data.get("subject_id"):
+        subject = db.query(Subject).filter(Subject.id == task_data["subject_id"]).first()
+        if subject:
+            task_data["course_code"] = subject.code
+            task_data["course_name"] = subject.name
+
+    task = Task(**task_data)
     db.add(task)
     db.commit()
     db.refresh(task)
@@ -47,6 +64,17 @@ def update_task(task_id: int, task_in: TaskUpdate, db: Session = Depends(get_db)
         raise HTTPException(status_code=404, detail="Task not found")
     
     update_data = task_in.model_dump(exclude_unset=True)
+
+    # Sync deadline & due_date if updated
+    if "deadline" in update_data and update_data["deadline"]:
+        update_data["due_date"] = update_data["deadline"]
+    elif "due_date" in update_data and update_data["due_date"]:
+        update_data["deadline"] = update_data["due_date"]
+
+    # Auto mark completed if progress reached 100%
+    if "progress" in update_data and update_data["progress"] >= 100.0:
+        update_data["status"] = "completed"
+
     for field, value in update_data.items():
         setattr(task, field, value)
     

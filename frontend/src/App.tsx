@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { PageId, Task, CalendarEvent, StudyPlan, AgentActivity, AgentApproval, DashboardStats } from './types';
+import { PageId, Subject, Task, CalendarEvent, StudySession, StudyPlan, AgentActivity, AgentApproval, DashboardStats } from './types';
 import { studyopsApi } from './api/client';
 
 import { Sidebar } from './components/Sidebar';
@@ -19,6 +19,7 @@ export const App: React.FC = () => {
   const [selectedPrompt, setSelectedPrompt] = useState<string>('');
   const [isCreateTaskModalOpen, setIsCreateTaskModalOpen] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
+  const [apiError, setApiError] = useState<string | null>(null);
 
   // Application Data States
   const [stats, setStats] = useState<DashboardStats>({
@@ -31,32 +32,49 @@ export const App: React.FC = () => {
     weekly_completed_hours: 0,
     pending_approvals_count: 0
   });
+  const [subjects, setSubjects] = useState<Subject[]>([]);
   const [tasks, setTasks] = useState<Task[]>([]);
   const [events, setEvents] = useState<CalendarEvent[]>([]);
+  const [studySessions, setStudySessions] = useState<StudySession[]>([]);
   const [studyPlans, setStudyPlans] = useState<StudyPlan[]>([]);
   const [activities, setActivities] = useState<AgentActivity[]>([]);
   const [approvals, setApprovals] = useState<AgentApproval[]>([]);
 
   const fetchAllData = async () => {
     setIsLoading(true);
+    setApiError(null);
     try {
-      const [statsRes, tasksRes, eventsRes, plansRes, activitiesRes, approvalsRes] = await Promise.all([
+      const [
+        statsRes, 
+        subjectsRes,
+        tasksRes, 
+        eventsRes, 
+        sessionsRes,
+        plansRes, 
+        activitiesRes, 
+        approvalsRes
+      ] = await Promise.all([
         studyopsApi.getDashboardStats(),
+        studyopsApi.getSubjects(),
         studyopsApi.getTasks(),
         studyopsApi.getCalendarEvents(),
+        studyopsApi.getStudySessions(),
         studyopsApi.getStudyPlans(),
         studyopsApi.getAgentActivities(),
         studyopsApi.getApprovals()
       ]);
 
       setStats(statsRes);
+      setSubjects(subjectsRes);
       setTasks(tasksRes);
       setEvents(eventsRes);
+      setStudySessions(sessionsRes);
       setStudyPlans(plansRes);
       setActivities(activitiesRes);
       setApprovals(approvalsRes);
-    } catch (err) {
+    } catch (err: any) {
       console.error("Error fetching data from studyops backend:", err);
+      setApiError(err?.message || "Failed to sync data with backend server");
     } finally {
       setIsLoading(false);
     }
@@ -115,6 +133,9 @@ export const App: React.FC = () => {
           {currentPage === 'tasks' && (
             <TasksPage
               tasks={tasks}
+              subjects={subjects}
+              isLoading={isLoading}
+              error={apiError}
               onRefresh={fetchAllData}
               onOpenCreateModal={() => setIsCreateTaskModalOpen(true)}
             />
@@ -123,6 +144,11 @@ export const App: React.FC = () => {
           {currentPage === 'calendar' && (
             <CalendarPage
               events={events}
+              studySessions={studySessions}
+              subjects={subjects}
+              tasks={tasks}
+              isLoading={isLoading}
+              error={apiError}
               onRefresh={fetchAllData}
             />
           )}
@@ -151,6 +177,7 @@ export const App: React.FC = () => {
       {/* Create Task Modal */}
       <CreateTaskModal
         isOpen={isCreateTaskModalOpen}
+        subjects={subjects}
         onClose={() => setIsCreateTaskModalOpen(false)}
         onSuccess={fetchAllData}
       />

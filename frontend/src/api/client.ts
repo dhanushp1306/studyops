@@ -1,5 +1,5 @@
 import axios from 'axios';
-import { Task, CalendarEvent, StudyPlan, AgentActivity, AgentApproval, DashboardStats } from '../types';
+import { Subject, Task, CalendarEvent, StudySession, StudyPlan, AgentActivity, AgentApproval, DashboardStats } from '../types';
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000/api';
 
@@ -20,33 +20,34 @@ export const studyopsApi = {
 
   // Dashboard Stats
   getDashboardStats: async (): Promise<DashboardStats> => {
-    try {
-      const res = await api.get('/dashboard/stats');
-      return res.data;
-    } catch (e) {
-      console.warn("Backend API unavailable, using cached dashboard state", e);
-      return {
-        total_tasks: 4,
-        pending_tasks: 3,
-        high_priority_tasks: 2,
-        completed_tasks: 1,
-        upcoming_events_today: 2,
-        weekly_planned_hours: 18.0,
-        weekly_completed_hours: 8.0,
-        pending_approvals_count: 1,
-      };
-    }
+    const res = await api.get('/dashboard/stats');
+    return res.data;
   },
 
-  // Tasks
-  getTasks: async (status?: string, course_code?: string): Promise<Task[]> => {
-    try {
-      const res = await api.get('/tasks', { params: { status, course_code } });
-      return res.data;
-    } catch (e) {
-      console.warn("Backend API unavailable, returning default tasks", e);
-      return [];
-    }
+  // Subjects API
+  getSubjects: async (): Promise<Subject[]> => {
+    const res = await api.get('/subjects');
+    return res.data;
+  },
+
+  createSubject: async (subject: Partial<Subject>): Promise<Subject> => {
+    const res = await api.post('/subjects', subject);
+    return res.data;
+  },
+
+  updateSubject: async (id: number, updates: Partial<Subject>): Promise<Subject> => {
+    const res = await api.put(`/subjects/${id}`, updates);
+    return res.data;
+  },
+
+  deleteSubject: async (id: number): Promise<void> => {
+    await api.delete(`/subjects/${id}`);
+  },
+
+  // Tasks API
+  getTasks: async (status?: string, subject_id?: number, course_code?: string): Promise<Task[]> => {
+    const res = await api.get('/tasks', { params: { status, subject_id, course_code } });
+    return res.data;
   },
 
   createTask: async (task: Partial<Task>): Promise<Task> => {
@@ -63,15 +64,10 @@ export const studyopsApi = {
     await api.delete(`/tasks/${taskId}`);
   },
 
-  // Calendar
-  getCalendarEvents: async (): Promise<CalendarEvent[]> => {
-    try {
-      const res = await api.get('/calendar/events');
-      return res.data;
-    } catch (e) {
-      console.warn("Backend API unavailable, returning default calendar events", e);
-      return [];
-    }
+  // Calendar Events API
+  getCalendarEvents: async (start?: string, end?: string): Promise<CalendarEvent[]> => {
+    const res = await api.get('/calendar/events', { params: { start, end } });
+    return res.data;
   },
 
   createCalendarEvent: async (event: Partial<CalendarEvent>): Promise<CalendarEvent> => {
@@ -79,37 +75,51 @@ export const studyopsApi = {
     return res.data;
   },
 
-  // Study Plans
+  updateCalendarEvent: async (id: number, updates: Partial<CalendarEvent>): Promise<CalendarEvent> => {
+    const res = await api.put(`/calendar/events/${id}`, updates);
+    return res.data;
+  },
+
+  deleteCalendarEvent: async (id: number): Promise<void> => {
+    await api.delete(`/calendar/events/${id}`);
+  },
+
+  // Study Sessions API
+  getStudySessions: async (subject_id?: number, status?: string): Promise<StudySession[]> => {
+    const res = await api.get('/study-sessions', { params: { subject_id, status } });
+    return res.data;
+  },
+
+  createStudySession: async (session: Partial<StudySession>): Promise<StudySession> => {
+    const res = await api.post('/study-sessions', session);
+    return res.data;
+  },
+
+  updateStudySession: async (id: number, updates: Partial<StudySession>): Promise<StudySession> => {
+    const res = await api.put(`/study-sessions/${id}`, updates);
+    return res.data;
+  },
+
+  deleteStudySession: async (id: number): Promise<void> => {
+    await api.delete(`/study-sessions/${id}`);
+  },
+
+  // Study Plans API
   getStudyPlans: async (): Promise<StudyPlan[]> => {
-    try {
-      const res = await api.get('/study-plans');
-      return res.data;
-    } catch (e) {
-      console.warn("Backend API unavailable, returning default study plans", e);
-      return [];
-    }
+    const res = await api.get('/study-plans');
+    return res.data;
   },
 
-  // Agent Activity
+  // Agent Activity API
   getAgentActivities: async (): Promise<AgentActivity[]> => {
-    try {
-      const res = await api.get('/agent/activity');
-      return res.data;
-    } catch (e) {
-      console.warn("Backend API unavailable, returning default agent activity", e);
-      return [];
-    }
+    const res = await api.get('/agent/activity');
+    return res.data;
   },
 
-  // Agent Approvals
+  // Agent Approvals API
   getApprovals: async (status?: string): Promise<AgentApproval[]> => {
-    try {
-      const res = await api.get('/agent/approvals', { params: { status } });
-      return res.data;
-    } catch (e) {
-      console.warn("Backend API unavailable, returning default approvals", e);
-      return [];
-    }
+    const res = await api.get('/agent/approvals', { params: { status } });
+    return res.data;
   },
 
   approveAction: async (approvalId: number): Promise<AgentApproval> => {
