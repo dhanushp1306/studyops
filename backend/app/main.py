@@ -4,7 +4,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from app.database import engine, Base, SessionLocal
-from app.routes import health, tasks, subjects, calendar, study_sessions, study_plans, agent_activity, approvals, seed
+from app.routes import health, tasks, subjects, calendar, study_sessions, study_plans, agent_activity, approvals, seed, tools_route
 from app.seed import seed_database
 
 @asynccontextmanager
@@ -53,6 +53,7 @@ app.include_router(study_plans.router)
 app.include_router(agent_activity.router)
 app.include_router(approvals.router)
 app.include_router(seed.router)
+app.include_router(tools_route.router)
 
 @app.get("/")
 def root():
