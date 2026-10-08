@@ -1,6 +1,6 @@
 from datetime import datetime
 from typing import List, Optional, Any, Dict
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, model_validator
 
 # --- Subject Schemas ---
 class SubjectBase(BaseModel):
@@ -64,9 +64,30 @@ class TaskUpdate(BaseModel):
 class TaskResponse(TaskBase):
     id: int
     due_date: datetime
+    estimated_hours: Optional[float] = None  # Alias for estimated_effort for frontend compatibility
     subject: Optional[SubjectResponse] = None
     created_at: datetime
     updated_at: datetime
+
+    @model_validator(mode='before')
+    @classmethod
+    def populate_aliases(cls, data: Any) -> Any:
+        if hasattr(data, '__dict__'):
+            # SQLAlchemy model instance
+            obj_dict = {}
+            for k in ['id', 'title', 'description', 'subject_id', 'course_code', 'course_name',
+                      'priority', 'status', 'progress', 'estimated_effort', 'completed_hours',
+                      'deadline', 'due_date', 'created_at', 'updated_at', 'subject']:
+                obj_dict[k] = getattr(data, k, None)
+            obj_dict['estimated_hours'] = obj_dict.get('estimated_effort', 2.0)
+            if not obj_dict.get('due_date') and obj_dict.get('deadline'):
+                obj_dict['due_date'] = obj_dict['deadline']
+            return obj_dict
+        if isinstance(data, dict):
+            data['estimated_hours'] = data.get('estimated_hours') or data.get('estimated_effort', 2.0)
+            if not data.get('due_date') and data.get('deadline'):
+                data['due_date'] = data['deadline']
+        return data
 
     class Config:
         from_attributes = True

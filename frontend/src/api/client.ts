@@ -1,7 +1,7 @@
 import axios from 'axios';
 import { Subject, Task, CalendarEvent, StudySession, StudyPlan, AgentActivity, AgentApproval, DashboardStats } from '../types';
 
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000/api';
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8001/api';
 
 export const api = axios.create({
   baseURL: API_BASE_URL,
@@ -129,6 +129,12 @@ export const studyopsApi = {
 
   rejectAction: async (approvalId: number): Promise<AgentApproval> => {
     const res = await api.post(`/agent/approvals/${approvalId}/reject`);
+    return res.data;
+  },
+
+  // AI Agent Orchestrator Run API
+  runAgent: async (userRequest: string) => {
+    const res = await api.post('/agent/run', { user_request: userRequest });
     return res.data;
   },
 

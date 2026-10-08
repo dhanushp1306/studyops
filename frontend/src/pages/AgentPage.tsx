@@ -8,11 +8,10 @@ import {
   Wrench, 
   ArrowRight, 
   ShieldAlert,
-  Play,
   RotateCcw,
   Zap,
   Layers,
-  ChevronRight
+  AlertCircle
 } from 'lucide-react';
 import { AgentActivity, PageId } from '../types';
 import { studyopsApi } from '../api/client';
@@ -33,10 +32,9 @@ export const AgentPage: React.FC<AgentPageProps> = ({
   const [promptInput, setPromptInput] = useState(initialPrompt);
   const [isExecuting, setIsExecuting] = useState(false);
   const [activeTab, setActiveTab] = useState<'interactive' | 'pipeline'>('interactive');
-  
-  // Active execution state simulation for UI demonstration
-  const [currentPipelineStep, setCurrentPipelineStep] = useState<number | null>(null);
-  const [simulatedRun, setSimulatedRun] = useState<AgentActivity | null>(null);
+  const [observableActions, setObservableActions] = useState<string[]>([]);
+  const [currentRunResult, setCurrentRunResult] = useState<any | null>(null);
+  const [errorMsg, setErrorMsg] = useState<string | null>(null);
 
   const promptShortcuts = [
     "Add my DAA assignment due Friday. It will take 3 hours.",
@@ -50,51 +48,32 @@ export const AgentPage: React.FC<AgentPageProps> = ({
     if (!textToRun.trim()) return;
     setPromptInput(textToRun);
     setIsExecuting(true);
-    setSimulatedRun(null);
+    setErrorMsg(null);
+    setObservableActions(["Understanding your request intent..."]);
+    setCurrentRunResult(null);
 
-    // Simulate multi-step autonomous agent execution visualizer
-    // Step 1: Intent Recognition
-    setCurrentPipelineStep(1);
-    await new Promise(r => setTimeout(r, 600));
+    try {
+      // Stream simulated initial observable steps while calling real backend endpoint
+      setTimeout(() => {
+        setObservableActions(prev => [...prev, "Checking your calendar and task deadlines..."]);
+      }, 300);
 
-    // Step 2: Plan Creation
-    setCurrentPipelineStep(2);
-    await new Promise(r => setTimeout(r, 700));
+      const response = await studyopsApi.runAgent(textToRun);
 
-    // Step 3: Tool Selection & Execution
-    setCurrentPipelineStep(3);
-    await new Promise(r => setTimeout(r, 800));
+      if (response.observable_actions && response.observable_actions.length > 0) {
+        setObservableActions(response.observable_actions);
+      } else {
+        setObservableActions(["Completed agent execution pipeline."]);
+      }
 
-    // Step 4: Final Action / Re-plan / Approval check
-    setCurrentPipelineStep(4);
-    await new Promise(r => setTimeout(r, 500));
-
-    // Build execution result mock based on prompt
-    const isRearrangePrompt = textToRun.toLowerCase().includes('rearrange') || textToRun.toLowerCase().includes('cannot finish');
-    const newRun: AgentActivity = {
-      id: Date.now(),
-      run_id: `run-${Math.random().toString(36).substring(2, 9)}`,
-      user_request: textToRun,
-      intent: isRearrangePrompt ? "rearrange_schedule_due_to_delay" : "academic_operations_scheduling",
-      plan_steps: [
-        { step: 1, action: `Analyzed intent from request: "${textToRun}"` },
-        { step: 2, action: "Evaluated current assignments, calendar slots, and priority weights" },
-        { step: 3, action: "Executed database & scheduler tools to apply changes" },
-        { step: 4, action: isRearrangePrompt ? "Formulated approval request for calendar shift" : "Successfully updated calendar & task records" }
-      ],
-      tools_used: ["task_manager", "calendar_slot_finder", "workload_optimizer"],
-      execution_result: isRearrangePrompt 
-        ? "Created pending approval to shift study session to tomorrow 5:00 PM without deadline breach."
-        : "Successfully processed request. Updated task records and allocated optimal study blocks.",
-      status: isRearrangePrompt ? "pending_approval" : "completed",
-      duration_ms: 1240,
-      created_at: new Date().toISOString()
-    };
-
-    setSimulatedRun(newRun);
-    setIsExecuting(false);
-    setCurrentPipelineStep(null);
-    onRefresh();
+      setCurrentRunResult(response);
+      onRefresh();
+    } catch (err: any) {
+      console.error("Agent execution failed:", err);
+      setErrorMsg(err?.response?.data?.detail || err?.message || "Failed to execute agent request");
+    } finally {
+      setIsExecuting(false);
+    }
   };
 
   return (
@@ -110,7 +89,7 @@ export const AgentPage: React.FC<AgentPageProps> = ({
               Autonomous Agent Command Center
             </h3>
             <p className="text-xs text-slate-400 mt-0.5">
-              Input natural language requests. The agent analyzes intent, builds execution plans, selects tools, and executes actions.
+              Natural language prompt parsing, dynamic tool selection, execution loops & conflict resolution.
             </p>
           </div>
         </div>
@@ -135,7 +114,7 @@ export const AgentPage: React.FC<AgentPageProps> = ({
         </div>
       </div>
 
-      {/* Main Interactive Command Section */}
+      {/* Main Command Section */}
       {activeTab === 'interactive' ? (
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           {/* Left Column: Input Box & Shortcuts */}
@@ -163,7 +142,7 @@ export const AgentPage: React.FC<AgentPageProps> = ({
                   {isExecuting ? (
                     <>
                       <RotateCcw className="w-4 h-4 animate-spin" />
-                      <span>Executing Plan...</span>
+                      <span>Executing...</span>
                     </>
                   ) : (
                     <>
@@ -193,138 +172,116 @@ export const AgentPage: React.FC<AgentPageProps> = ({
               </div>
             </div>
 
-            {/* Execution Visualizer / Results Card */}
-            {(isExecuting || simulatedRun || activities.length > 0) && (
-              <div className="glass-panel p-6 rounded-2xl space-y-5 animate-fade-in border-emerald-500/20">
+            {/* Error Message if Any */}
+            {errorMsg && (
+              <div className="glass-panel p-4 rounded-2xl border-rose-500/40 bg-rose-950/20 text-rose-300 text-xs flex items-center gap-2">
+                <AlertCircle className="w-4 h-4 text-rose-400 flex-shrink-0" />
+                <span>{errorMsg}</span>
+              </div>
+            )}
+
+            {/* Observable Actions & Execution Results */}
+            {(isExecuting || currentRunResult) && (
+              <div className="glass-panel p-6 rounded-2xl space-y-5 animate-fade-in border-emerald-500/30">
                 <div className="flex items-center justify-between border-b border-slate-800 pb-3">
                   <h4 className="font-heading font-bold text-base text-slate-100 flex items-center gap-2">
                     <Zap className="w-4 h-4 text-emerald-400" />
-                    <span>Live Agent Execution Progress</span>
+                    <span>Observable Agent Actions</span>
                   </h4>
-                  {isExecuting && (
+                  {isExecuting ? (
                     <span className="px-2.5 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300 text-xs font-mono font-medium animate-pulse">
                       Running Pipeline...
+                    </span>
+                  ) : (
+                    <span className="text-xs font-mono text-slate-400">
+                      Duration: {currentRunResult?.duration_ms}ms
                     </span>
                   )}
                 </div>
 
-                {/* Pipeline Step Progress Bar */}
-                <div className="grid grid-cols-4 gap-2">
-                  {[
-                    { step: 1, title: 'Intent' },
-                    { step: 2, title: 'Plan' },
-                    { step: 3, title: 'Tools' },
-                    { step: 4, title: 'Execute' }
-                  ].map((s) => {
-                    const isDone = simulatedRun || (currentPipelineStep && currentPipelineStep > s.step);
-                    const isCurrent = currentPipelineStep === s.step;
-
-                    return (
-                      <div
-                        key={s.step}
-                        className={`p-3 rounded-xl border text-center transition-all ${
-                          isDone
-                            ? 'bg-emerald-500/10 border-emerald-500/40 text-emerald-300'
-                            : isCurrent
-                            ? 'bg-cyan-500/20 border-cyan-400 text-cyan-200 animate-pulse'
-                            : 'bg-slate-900/40 border-slate-800 text-slate-500'
-                        }`}
-                      >
-                        <div className="text-[10px] font-mono font-bold">STEP 0{s.step}</div>
-                        <div className="text-xs font-semibold mt-0.5">{s.title}</div>
-                      </div>
-                    );
-                  })}
+                {/* Concise Observable Actions List */}
+                <div className="space-y-2">
+                  {observableActions.map((action, idx) => (
+                    <div key={idx} className="p-3 rounded-xl bg-slate-900/80 border border-slate-800 text-xs text-slate-200 flex items-center gap-2.5 font-sans">
+                      <div className="w-2 h-2 rounded-full bg-emerald-400 shadow-sm shadow-emerald-400 animate-ping"></div>
+                      <span>"{action}"</span>
+                    </div>
+                  ))}
                 </div>
 
-                {/* Simulated Run Details */}
-                {simulatedRun && (
-                  <div className="space-y-4 pt-2">
-                    <div className="p-4 rounded-xl bg-slate-900/80 border border-slate-800 space-y-3">
-                      <div className="flex items-center justify-between">
-                        <div className="text-xs font-bold text-emerald-400 uppercase font-mono">
-                          Intent Identified: {simulatedRun.intent}
-                        </div>
-                        <span className="text-[11px] text-slate-500 font-mono">
-                          Duration: {simulatedRun.duration_ms}ms
-                        </span>
+                {/* Final Result Card */}
+                {currentRunResult && (
+                  <div className="p-4 rounded-xl bg-slate-900 border border-slate-800 space-y-3 pt-3">
+                    <div className="flex items-center justify-between">
+                      <div className="text-xs font-bold text-emerald-400 font-mono uppercase">
+                        Intent: {currentRunResult.intent}
                       </div>
+                      <span className={`px-2.5 py-0.5 rounded-full text-xs font-bold uppercase ${
+                        currentRunResult.status === 'completed' ? 'bg-emerald-500/20 text-emerald-300' :
+                        currentRunResult.status === 'pending_approval' ? 'bg-rose-500/20 text-rose-300' : 'bg-slate-800 text-slate-400'
+                      }`}>
+                        {currentRunResult.status.replace('_', ' ')}
+                      </span>
+                    </div>
 
-                      <div className="text-xs text-slate-200 bg-slate-950 p-3 rounded-lg border border-slate-800 font-sans">
-                        <span className="font-semibold text-emerald-400">Result: </span>
-                        {simulatedRun.execution_result}
-                      </div>
+                    <div className="text-sm font-medium text-slate-100 bg-slate-950 p-3.5 rounded-xl border border-slate-800">
+                      {currentRunResult.final_response}
+                    </div>
 
-                      {/* Generated Sub-Steps */}
-                      <div className="space-y-1.5 pt-1">
-                        <div className="text-[11px] font-semibold text-slate-400 uppercase">Execution Steps:</div>
-                        {simulatedRun.plan_steps?.map((stepItem, idx) => (
-                          <div key={idx} className="flex items-center gap-2 text-xs text-slate-300">
-                            <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400 flex-shrink-0" />
-                            <span>{stepItem.action}</span>
-                          </div>
-                        ))}
-                      </div>
-
-                      {/* Tool Calls Executed */}
+                    {/* Executed Tools */}
+                    {currentRunResult.tools_used && currentRunResult.tools_used.length > 0 && (
                       <div className="flex items-center gap-2 pt-2 border-t border-slate-800">
-                        <span className="text-[11px] font-semibold text-slate-400 uppercase">Tools Invoked:</span>
-                        <div className="flex items-center gap-1.5">
-                          {simulatedRun.tools_used?.map((tool, idx) => (
-                            <span key={idx} className="px-2 py-0.5 rounded bg-slate-800 text-cyan-300 border border-slate-700 font-mono text-[10px]">
-                              {tool}
+                        <Wrench className="w-3.5 h-3.5 text-slate-400" />
+                        <span className="text-[11px] font-semibold text-slate-400 uppercase">Tools Executed:</span>
+                        <div className="flex flex-wrap gap-1.5">
+                          {currentRunResult.tools_used.map((t: string, idx: number) => (
+                            <span key={idx} className="px-2 py-0.5 rounded bg-slate-800 text-cyan-300 font-mono text-[10px] border border-slate-700">
+                              {t}
                             </span>
                           ))}
                         </div>
                       </div>
+                    )}
 
-                      {/* If pending approval trigger */}
-                      {simulatedRun.status === 'pending_approval' && (
-                        <div className="p-3 rounded-lg bg-rose-950/30 border border-rose-500/40 flex items-center justify-between">
-                          <div className="text-xs text-rose-300 flex items-center gap-2">
-                            <ShieldAlert className="w-4 h-4 text-rose-400" />
-                            <span>Requires Human Approval before final calendar mutation</span>
-                          </div>
-                          <button
-                            onClick={() => onPageChange('approvals')}
-                            className="px-3 py-1 rounded-md bg-rose-500 hover:bg-rose-600 text-white font-semibold text-xs transition-all"
-                          >
-                            Go to Approvals
-                          </button>
+                    {/* Pending Approval Alert */}
+                    {currentRunResult.status === 'pending_approval' && (
+                      <div className="p-3.5 rounded-xl bg-rose-950/40 border border-rose-500/40 flex items-center justify-between gap-3">
+                        <div className="text-xs text-rose-300 flex items-center gap-2">
+                          <ShieldAlert className="w-4 h-4 text-rose-400 flex-shrink-0" />
+                          <span>Action requires human approval before calendar mutation.</span>
                         </div>
-                      )}
-                    </div>
+                        <button
+                          onClick={() => onPageChange('approvals')}
+                          className="px-3.5 py-1.5 rounded-lg bg-rose-500 hover:bg-rose-600 text-white font-bold text-xs transition-all flex items-center gap-1 shadow-md shadow-rose-950/40"
+                        >
+                          <span>Review Approval</span>
+                          <ArrowRight className="w-3.5 h-3.5" />
+                        </button>
+                      </div>
+                    )}
                   </div>
                 )}
               </div>
             )}
           </div>
 
-          {/* Right Column: Agent Workflow Explanation */}
+          {/* Right Column: Recent Activities */}
           <div className="space-y-6">
             <div className="glass-panel p-6 rounded-2xl space-y-4">
               <h4 className="font-heading font-bold text-base text-slate-100 flex items-center gap-2">
-                <Layers className="w-4 h-4 text-cyan-400" />
-                <span>Autonomous Agent Cycle</span>
+                <Clock className="w-4 h-4 text-cyan-400" />
+                <span>Recent Agent Runs</span>
               </h4>
 
-              <div className="space-y-3 text-xs text-slate-300">
-                {[
-                  { num: '1', title: 'User Request', desc: 'Receive natural text input' },
-                  { num: '2', title: 'Understand Intent', desc: 'Parse CS course codes, deadlines, effort hours' },
-                  { num: '3', title: 'Create Plan', desc: 'Synthesize optimal multi-step resolution' },
-                  { num: '4', title: 'Select Tools', desc: 'Pick DB, calendar, & solver tools' },
-                  { num: '5', title: 'Execute Tools', desc: 'Perform mutations & schedule updates' },
-                  { num: '6', title: 'Observe & Re-Plan', desc: 'Detect conflicts & prompt approval if required' },
-                ].map((item) => (
-                  <div key={item.num} className="p-3 rounded-xl bg-slate-900/60 border border-slate-800/80 flex items-start gap-3">
-                    <span className="w-6 h-6 rounded-lg bg-emerald-500/20 text-emerald-400 font-bold text-xs flex items-center justify-center flex-shrink-0">
-                      {item.num}
-                    </span>
-                    <div>
-                      <div className="font-semibold text-slate-200">{item.title}</div>
-                      <div className="text-slate-400 text-[11px]">{item.desc}</div>
+              <div className="space-y-3">
+                {activities.slice(0, 4).map((act) => (
+                  <div key={act.id} className="p-3.5 rounded-xl bg-slate-900/60 border border-slate-800 space-y-1.5">
+                    <div className="flex items-center justify-between text-[11px] font-mono">
+                      <span className="text-cyan-400 font-bold">{act.intent}</span>
+                      <span className="text-slate-500">{act.duration_ms}ms</span>
                     </div>
+                    <div className="text-xs font-semibold text-slate-200 line-clamp-1">"{act.user_request}"</div>
+                    <div className="text-[11px] text-slate-400 line-clamp-2">{act.execution_result}</div>
                   </div>
                 ))}
               </div>
@@ -332,28 +289,28 @@ export const AgentPage: React.FC<AgentPageProps> = ({
           </div>
         </div>
       ) : (
-        /* Workflow Pipeline Visualizer Tab */
+        /* Workflow Visualizer Tab */
         <div className="glass-panel p-8 rounded-2xl space-y-8">
           <div className="text-center max-w-xl mx-auto space-y-2">
             <h3 className="font-heading font-extrabold text-2xl text-slate-100">
-              Agent Execution Architecture
+              Agent Orchestrator Architecture
             </h3>
             <p className="text-xs text-slate-400">
-              End-to-end trace of intent analysis, tool selection, plan generation, and human approval checks.
+              End-to-end flow: Natural Language parsing → Tool Selection → Execution → Conflict Evaluation & Human Approval.
             </p>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-5 gap-4 relative">
+          <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
             {[
               { step: '01', title: 'Intent Engine', icon: Sparkles, color: 'text-emerald-400', desc: 'Parses course codes, deadlines, estimated effort' },
               { step: '02', title: 'Planner', icon: Layers, color: 'text-cyan-400', desc: 'Calculates free slots & balances workload' },
               { step: '03', title: 'Tool Registry', icon: Wrench, color: 'text-indigo-400', desc: 'Executes Task DB & Calendar APIs' },
               { step: '04', title: 'Re-Planner', icon: RotateCcw, color: 'text-amber-400', desc: 'Detects conflicts & reschedules' },
               { step: '05', title: 'Human Approval', icon: ShieldAlert, color: 'text-rose-400', desc: 'Enforces student approval on shifts' },
-            ].map((node, index) => {
+            ].map((node) => {
               const IconComponent = node.icon;
               return (
-                <div key={node.step} className="glass-panel p-5 rounded-xl border-slate-800 flex flex-col items-center text-center space-y-3 relative">
+                <div key={node.step} className="glass-panel p-5 rounded-xl border-slate-800 flex flex-col items-center text-center space-y-3">
                   <div className={`p-3 rounded-xl bg-slate-900 border border-slate-700 ${node.color}`}>
                     <IconComponent className="w-6 h-6" />
                   </div>
