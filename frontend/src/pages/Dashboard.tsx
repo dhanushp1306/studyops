@@ -76,6 +76,34 @@ export const Dashboard: React.FC<DashboardProps> = ({
         </div>
       )}
 
+      {/* Hero Widget: What Should I Do Now? */}
+      <div className="glass-panel p-6 rounded-2xl border-emerald-500/30 bg-gradient-to-r from-emerald-950/30 via-slate-900/80 to-cyan-950/30 shadow-xl flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+        <div className="flex items-center gap-4">
+          <div className="p-3.5 rounded-2xl bg-gradient-to-tr from-emerald-500 to-cyan-500 text-slate-950 shadow-lg shadow-emerald-500/30">
+            <Sparkles className="w-7 h-7" />
+          </div>
+          <div>
+            <div className="flex items-center gap-2">
+              <span className="px-2 py-0.5 rounded text-[10px] font-bold uppercase bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">
+                Standout Feature
+              </span>
+              <h3 className="font-heading font-extrabold text-xl text-slate-100">What Should I Do Now?</h3>
+            </div>
+            <p className="text-xs text-slate-300 mt-1">
+              Dynamic multi-variable analysis of deadlines, remaining effort, priority scores & calendar gaps
+            </p>
+          </div>
+        </div>
+
+        <button
+          onClick={() => handlePromptClick("What should I do now?")}
+          className="px-5 py-3 rounded-xl bg-gradient-to-r from-emerald-500 to-cyan-500 hover:from-emerald-400 hover:to-cyan-400 text-slate-950 font-extrabold text-xs flex items-center justify-center gap-2 shadow-lg shadow-emerald-500/25 transition-all transform hover:-translate-y-0.5 active:translate-y-0 flex-shrink-0"
+        >
+          <Sparkles className="w-4 h-4" />
+          <span>Get Recommended Action</span>
+        </button>
+      </div>
+
       {/* Overview Stat Cards Grid */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         {/* Metric 1 */}

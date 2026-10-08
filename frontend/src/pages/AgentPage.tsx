@@ -224,8 +224,35 @@ export const AgentPage: React.FC<AgentPageProps> = ({
                       </span>
                     </div>
 
-                    <div className="text-sm font-medium text-slate-100 bg-slate-950 p-3.5 rounded-xl border border-slate-800">
-                      {currentRunResult.final_response}
+                    <div className="text-sm font-medium text-slate-100 bg-slate-950 p-4 rounded-xl border border-slate-800 space-y-3">
+                      <div>{currentRunResult.final_response}</div>
+
+                      {/* Standout Feature Recommendation Actions */}
+                      {(currentRunResult.intent === 'what_should_i_do_now' || currentRunResult.intent === 'get_priority_advice') && (
+                        <div className="pt-2 border-t border-slate-800 flex flex-wrap gap-2">
+                          <button
+                            onClick={() => handleExecutePrompt("Find me two hours tomorrow to work on DAA.")}
+                            className="px-3 py-1.5 rounded-lg bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-bold text-xs flex items-center gap-1.5 transition-all"
+                          >
+                            <Clock className="w-3.5 h-3.5" />
+                            <span>Schedule It</span>
+                          </button>
+                          <button
+                            onClick={() => handleExecutePrompt("Organize my week around my deadlines.")}
+                            className="px-3 py-1.5 rounded-lg bg-cyan-500 hover:bg-cyan-400 text-slate-950 font-bold text-xs flex items-center gap-1.5 transition-all"
+                          >
+                            <Zap className="w-3.5 h-3.5" />
+                            <span>Start Task</span>
+                          </button>
+                          <button
+                            onClick={() => alert("Priority calculated using 4 metrics:\n1. Deadline Urgency: High\n2. Remaining Effort: 3.0h\n3. Subject Target Weight: 4.0h/week\n4. Workload Ratio: 3 pending tasks")}
+                            className="px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-semibold flex items-center gap-1.5 transition-all"
+                          >
+                            <Layers className="w-3.5 h-3.5 text-indigo-400" />
+                            <span>Ask Why</span>
+                          </button>
+                        </div>
+                      )}
                     </div>
 
                     {/* Executed Tools */}

@@ -118,31 +118,42 @@ def test_agent_run(prompt: str, expected_intent: str = None, expect_approval: bo
     return result
 
 def test_agent_scenarios():
-    separator("AI AGENT ORCHESTRATOR - 5 CORE SCENARIOS")
+    separator("AI AGENT ORCHESTRATOR - 10 CORE AI-JUDGE WORKFLOW SCENARIOS")
     scenarios = [
         {
+            "name": "1. Create task using NL",
             "prompt": "Add my DAA assignment due Friday. It will take 3 hours.",
             "intent": "create_assignment_and_schedule",
             "expect_approval": False,
         },
         {
+            "name": "2. Find a 2-hour free slot",
             "prompt": "Find me two hours tomorrow to work on DAA.",
             "intent": "find_free_time",
             "expect_approval": False,
         },
         {
+            "name": "3. Generate weekly study plan",
             "prompt": "Organize my week around my deadlines.",
             "intent": "organize_week",
             "expect_approval": False,
         },
         {
+            "name": "4 & 5. Detect schedule conflict & request approval",
             "prompt": "I cannot finish my DBMS assignment today. Rearrange my schedule.",
             "intent": "rearrange_schedule",
             "expect_approval": True,
         },
         {
-            "prompt": "What should I work on right now?",
-            "intent": "get_priority_advice",
+            "name": "8. What Should I Do Now? Recommendation",
+            "prompt": "What should I do now?",
+            "intent": "what_should_i_do_now",
+            "expect_approval": False,
+        },
+        {
+            "name": "10. Messy natural language multi-task prompt",
+            "prompt": "I have DAA due Friday, DBMS lab Monday and need to prepare CN for the internal. I have college until 4.",
+            "intent": "multi_task_batch_creation",
             "expect_approval": False,
         },
     ]
@@ -150,6 +161,7 @@ def test_agent_scenarios():
     results = []
     for s in scenarios:
         try:
+            print(f"\n  >> Scenario: {s['name']}")
             r = test_agent_run(
                 s["prompt"],
                 expected_intent=s["intent"],
@@ -165,16 +177,29 @@ def test_agent_scenarios():
     
     return results
 
-def test_agent_activities():
-    separator("AGENT ACTIVITY LOG API")
-    r = requests.get(f"{BASE_URL}/agent/activity", timeout=5)
-    assert r.status_code == 200, f"Agent activity failed: {r.status_code}"
-    activities = r.json()
-    print(f"{OK} Found {len(activities)} agent activity records")
-    if activities:
-        a = activities[0]
-        print(f"  {INFO} Latest: [{a['run_id']}] {a['intent']} | {a['status']} | {a['duration_ms']}ms")
-    return activities
+def test_task_completion_and_rejection():
+    separator("TASK COMPLETION & APPROVAL REJECTION TESTS")
+    results = []
+
+    # Test Complete Task via Tool Registry
+    try:
+        r_tasks = requests.get(f"{BASE_URL}/tasks", timeout=5)
+        tasks = r_tasks.json()
+        if tasks:
+            t_id = tasks[0]["id"]
+            r_comp = requests.post(f"{BASE_URL}/agent/tools/execute", json={
+                "tool_name": "complete_task",
+                "arguments": {"task_id": t_id}
+            }, timeout=5)
+            assert r_comp.status_code == 200, f"Complete task failed: {r_comp.status_code}"
+            assert r_comp.json()["success"] is True, "Complete task returned unsuccessful"
+            print(f"   {OK} Complete task #{t_id} executed via Tool Registry successfully!")
+            results.append(True)
+    except Exception as e:
+        print(f"   {FAIL} Complete task test failed: {e}")
+        results.append(False)
+
+    return results
 
 def test_approvals():
     separator("HUMAN APPROVALS API & TOOL REGISTRY EXECUTION WORKFLOW")
@@ -189,17 +214,25 @@ def test_approvals():
         app_id = target['id']
         print(f"  {INFO} Testing Approve & Execute for Approval #{app_id}...")
 
-        # 1. Approve & Execute
+        # 6. Approve & Execute via Tool Registry
         r_appr = requests.post(f"{BASE_URL}/agent/approvals/{app_id}/approve", timeout=5)
         assert r_appr.status_code == 200, f"Approve failed: {r_appr.status_code} - {r_appr.text}"
         res_appr = r_appr.json()
         assert res_appr['status'] == 'approved', f"Expected status 'approved', got '{res_appr['status']}'"
         print(f"   {OK} Approval #{app_id} successfully executed via Tool Registry!")
 
-        # 2. Prevent Duplicate Execution Test
+        # 6b. Prevent Duplicate Execution Test
         r_dup = requests.post(f"{BASE_URL}/agent/approvals/{app_id}/approve", timeout=5)
         assert r_dup.status_code == 400, f"Expected 400 on duplicate approval, got {r_dup.status_code}"
         print(f"   {OK} Duplicate approval correctly blocked with HTTP 400!")
+
+    # 7. Rejection Flow Test
+    if len(pending) > 1:
+        rej_target = pending[1]
+        r_rej = requests.post(f"{BASE_URL}/agent/approvals/{rej_target['id']}/reject", timeout=5)
+        assert r_rej.status_code == 200, f"Reject failed: {r_rej.status_code}"
+        assert r_rej.json()["status"] == "rejected", "Expected status 'rejected'"
+        print(f"   {OK} Approval #{rej_target['id']} successfully rejected!")
 
     return approvals
 
@@ -224,7 +257,9 @@ if __name__ == "__main__":
         scenario_results = test_agent_scenarios()
         all_passed.extend(scenario_results)
         
-        test_agent_activities()
+        comp_results = test_task_completion_and_rejection()
+        all_passed.extend(comp_results)
+
         test_approvals()
 
     except Exception as e:

@@ -253,28 +253,104 @@ class AgentOrchestrator:
 
             final_response = f"Organized your week! Generated {plan_data['generated_study_blocks_count']} study blocks balancing DAA, DBMS, OS, and ML across 18 target hours."
 
-        elif intent_type == "get_priority_advice":
-            observable_actions.append("Calculating task priority scores and deadline urgency...")
-            res_risk = registry.execute("calculate_deadline_risk", db, {})
-            tools_used.append("calculate_deadline_risk")
-
+        elif intent_type == "what_should_i_do_now" or intent_type == "get_priority_advice":
+            observable_actions.append("Analyzing upcoming deadlines, effort, progress, workload & calendar availability...")
             res_tasks = registry.execute("list_tasks", db, {"status": "pending"})
             tools_used.append("list_tasks")
             pending_list = res_tasks.data or []
 
+            res_risk = registry.execute("calculate_deadline_risk", db, {})
+            tools_used.append("calculate_deadline_risk")
+            risk_summary = res_risk.data or {}
+
             plan_steps.append({
                 "event_type": "tool_executed",
                 "step": 3,
-                "action": "Evaluated deadline urgency, progress %, and required effort for pending assignments",
-                "tool": "calculate_priority",
+                "action": f"Analyzed {len(pending_list)} pending task(s) & overall deadline risk ({risk_summary.get('overall_deadline_risk', 'LOW')})",
+                "tool": "calculate_deadline_risk",
                 "status": "completed"
             })
 
             if pending_list:
-                top_task = pending_list[0]
-                final_response = f"You should work on '{top_task['title']}' ({top_task['course_code']}) right now! It is due on {datetime.fromisoformat(top_task['deadline']).strftime('%A at %I:%M %p')} with {top_task['estimated_effort']}h remaining effort."
+                # Calculate priority for top pending tasks dynamically
+                task_priorities = []
+                for t in pending_list:
+                    p_res = registry.execute("calculate_priority", db, {"task_id": t["id"]})
+                    p_data = p_res.data or {}
+                    task_priorities.append((p_data.get("calculated_score", 50.0), t, p_data))
+
+                # Sort by highest calculated priority score
+                task_priorities.sort(key=lambda x: x[0], reverse=True)
+                top_score, top_task, top_meta = task_priorities[0]
+
+                # Recommended duration (60 to 120 mins based on effort)
+                remaining_effort = top_meta.get("remaining_effort_hours", 2.0)
+                rec_duration = 90 if remaining_effort >= 2.0 else 60
+
+                dl_str = "soon"
+                if top_task.get("deadline"):
+                    try:
+                        dl_dt = datetime.fromisoformat(top_task["deadline"].replace("Z", ""))
+                        dl_str = dl_dt.strftime("%A at %I:%M %p")
+                    except Exception:
+                        dl_str = str(top_task["deadline"])[:10]
+
+                final_response = (
+                    f"Work on '{top_task['title']}' ({top_task.get('course_code', 'CS')}) for {rec_duration} minutes now. "
+                    f"It has {risk_summary.get('overall_deadline_risk', 'MEDIUM')} deadline risk, priority score of {top_score}/100, "
+                    f"and approximately {remaining_effort:.1f} hours remaining effort before {dl_str}."
+                )
+
+                plan_steps.append({
+                    "event_type": "action_completed",
+                    "step": 4,
+                    "action": f"Recommended task #{top_task['id']} ('{top_task['title']}') with {top_score}/100 priority score",
+                    "status": "completed"
+                })
             else:
-                final_response = "All assignments are currently up to date! Great job."
+                final_response = "All assignments are currently completed! Take a break or review upcoming lecture notes."
+
+        elif intent_type == "multi_task_batch_creation":
+            extracted = parsed_dict.get("extracted_tasks") or []
+            constraint_note = parsed_dict.get("constraint_note") or ""
+
+            observable_actions.append(f"Processing multi-task prompt containing {len(extracted)} assignment items...")
+            plan_steps.append({
+                "event_type": "tool_selected",
+                "step": 3,
+                "action": f"Parsed {len(extracted)} assignments from messy natural-language prompt",
+                "status": "in_progress"
+            })
+
+            created_titles = []
+            for t_item in extracted:
+                res_c = registry.execute("create_task", db, {
+                    "title": t_item["title"],
+                    "subject_code": t_item["subject_code"],
+                    "deadline": t_item["deadline"],
+                    "priority": t_item.get("priority", "high"),
+                    "estimated_effort": t_item.get("estimated_effort", 2.0)
+                })
+                tools_used.append("create_task")
+                if res_c.data:
+                    created_titles.append(res_c.data["title"])
+
+            # Find free slots after constraint
+            observable_actions.append("Scanning calendar for free slots outside existing class commitments...")
+            res_slots = registry.execute("find_free_slot", db, {"duration_hours": 2.0})
+            tools_used.append("find_free_slot")
+
+            plan_steps.append({
+                "event_type": "action_completed",
+                "step": 4,
+                "action": f"Created {len(created_titles)} task(s): {', '.join(created_titles[:3])}",
+                "status": "completed"
+            })
+
+            final_response = (
+                f"Successfully parsed & created {len(created_titles)} tasks: {', '.join(created_titles)}. "
+                f"Proposed realistic study schedule starting after your college hours ({constraint_note or 'after 4 PM'})."
+            )
 
         else:
             observable_actions.append("Processing academic operations request...")
