@@ -13,21 +13,32 @@ class CalculatePriorityArgs(BaseModel):
 
 class CalculatePriorityTool(BaseTool):
     name = "calculate_priority"
-    description = "Compute algorithmic priority score (0-100) and recommendation level (high, medium, low) based on deadline urgency and effort"
+    description = "Compute multi-factor priority score (0-100) combining deadline urgency, effort, progress, subject importance, and overall workload"
     args_schema = CalculatePriorityArgs
 
     def _execute(self, db: Session, args: CalculatePriorityArgs) -> tuple[Any, str]:
         deadline = args.deadline
         effort = args.estimated_effort or 2.0
         title = "Hypothetical Task"
+        progress = 0
+        subject_importance = 1.0
 
         if args.task_id:
             task = db.query(Task).filter(Task.id == args.task_id).first()
             if not task:
                 raise ValueError(f"Task ID {args.task_id} not found")
             deadline = task.deadline or task.due_date
-            effort = max(0.5, (task.estimated_effort or task.estimated_hours or 2.0) * (1 - (task.progress or 0) / 100))
+            progress = task.progress or 0
+            effort = max(0.5, (task.estimated_effort or task.estimated_hours or 2.0) * (1 - progress / 100.0))
             title = task.title
+
+            # Fetch subject weight if available
+            if task.subject_id or task.course_code:
+                subj = db.query(Subject).filter(
+                    (Subject.id == task.subject_id) | (Subject.code == task.course_code)
+                ).first()
+                if subj and subj.target_hours_per_week:
+                    subject_importance = min(2.0, max(0.8, subj.target_hours_per_week / 4.0))
 
         if not deadline:
             deadline = datetime.utcnow() + timedelta(days=3)
@@ -35,11 +46,22 @@ class CalculatePriorityTool(BaseTool):
         now = datetime.utcnow()
         hours_until_deadline = max(0.1, (deadline - now).total_seconds() / 3600)
 
-        # Urgency ratio: effort required / hours until deadline
-        urgency_ratio = effort / hours_until_deadline
+        # 1. Deadline Urgency Factor (0 - 45)
+        urgency_factor = min(45.0, (48.0 / hours_until_deadline) * 20.0) if hours_until_deadline < 48 else max(5.0, 30.0 - hours_until_deadline / 12.0)
 
-        # Priority score (0 - 100)
-        score = min(100.0, round(urgency_ratio * 75 + (50 if hours_until_deadline < 48 else 20), 1))
+        # 2. Effort vs Window Ratio Factor (0 - 25)
+        urgency_ratio = effort / hours_until_deadline
+        effort_factor = min(25.0, urgency_ratio * 50.0)
+
+        # 3. Subject Importance Factor (0 - 15)
+        importance_factor = subject_importance * 7.5
+
+        # 4. Total Current Workload Factor (0 - 15)
+        pending_count = db.query(Task).filter(Task.status.in_(["pending", "in_progress"])).count()
+        workload_factor = min(15.0, pending_count * 2.5)
+
+        # Combine into multi-factor priority score (0 - 100)
+        score = min(100.0, round(urgency_factor + effort_factor + importance_factor + workload_factor, 1))
 
         if score >= 70 or hours_until_deadline < 36:
             level = "high"
@@ -55,9 +77,12 @@ class CalculatePriorityTool(BaseTool):
             "recommended_priority": level,
             "hours_until_deadline": round(hours_until_deadline, 1),
             "remaining_effort_hours": effort,
+            "progress_percent": progress,
+            "subject_importance_weight": subject_importance,
+            "current_workload_tasks": pending_count,
             "urgency_ratio": round(urgency_ratio, 3)
         }
-        return res, f"Priority score for '{title}': {score}/100 ({level.upper()} priority)"
+        return res, f"Multi-factor priority score for '{title}': {score}/100 ({level.upper()} priority)"
 
 
 # --- 2. calculate_deadline_risk ---

@@ -81,6 +81,8 @@ export interface StudyPlan {
 export interface PlanStep {
   step: number;
   action: string;
+  event_type?: string;
+  tool?: string;
   status?: string;
 }
 

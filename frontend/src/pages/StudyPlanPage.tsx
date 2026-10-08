@@ -1,6 +1,7 @@
 import React from 'react';
 import { BookOpen, TrendingUp, CheckCircle2, Clock, Zap } from 'lucide-react';
 import { StudyPlan } from '../types';
+import { studyopsApi } from '../api/client';
 
 interface StudyPlanPageProps {
   plans: StudyPlan[];
@@ -20,10 +21,25 @@ export const StudyPlanPage: React.FC<StudyPlanPageProps> = ({ plans }) => {
             <BookOpen className="w-6 h-6" />
           </div>
           <div>
-            <h3 className="font-heading font-bold text-xl text-slate-100">Study Plan & Workload Optimization</h3>
-            <p className="text-xs text-slate-400">Target study distribution across CS courses & subject load balance</p>
+            <h3 className="font-heading font-bold text-xl text-slate-100">AI Study Plan & Workload Engine</h3>
+            <p className="text-xs text-slate-400">Autonomous calendar conflict-aware study block scheduling</p>
           </div>
         </div>
+
+        <button
+          onClick={async () => {
+            try {
+              await studyopsApi.runAgent("Organize my week around my deadlines.");
+              window.location.reload();
+            } catch (e) {
+              console.error("Failed to generate AI study plan", e);
+            }
+          }}
+          className="px-4 py-2.5 rounded-xl bg-gradient-to-r from-emerald-500 to-cyan-500 hover:from-emerald-400 hover:to-cyan-400 text-slate-950 font-bold text-xs flex items-center justify-center gap-2 shadow-lg shadow-emerald-500/20 transition-all"
+        >
+          <Zap className="w-4 h-4" />
+          <span>Generate AI Study Plan</span>
+        </button>
       </div>
 
       {/* Overview Stat Cards */}

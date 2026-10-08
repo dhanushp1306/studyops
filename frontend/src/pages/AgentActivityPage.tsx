@@ -61,19 +61,42 @@ export const AgentActivityPage: React.FC<AgentActivityPageProps> = ({ activities
                 <div className="text-xs text-slate-300 font-sans">{act.execution_result}</div>
               </div>
 
-              {/* Sub-steps */}
+              {/* Observable Event Steps Timeline */}
               {act.plan_steps && act.plan_steps.length > 0 && (
-                <div className="space-y-1.5 pt-1">
-                  <div className="text-xs font-semibold text-slate-400 uppercase">Sub-Plan Steps:</div>
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
-                    {act.plan_steps.map((s, idx) => (
-                      <div key={idx} className="p-2.5 rounded-lg bg-slate-900/40 border border-slate-800 text-xs text-slate-300 flex items-center gap-2">
-                        <span className="w-4 h-4 rounded bg-emerald-500/20 text-emerald-400 font-bold text-[10px] flex items-center justify-center flex-shrink-0">
-                          {s.step || idx + 1}
-                        </span>
-                        <span className="line-clamp-1">{s.action}</span>
-                      </div>
-                    ))}
+                <div className="space-y-2 pt-1">
+                  <div className="text-xs font-semibold text-slate-400 uppercase tracking-wider">Observable Execution Timeline:</div>
+                  <div className="space-y-2">
+                    {act.plan_steps.map((s, idx) => {
+                      const evtType = s.event_type || "action_completed";
+                      const isWarning = evtType === "conflict_detected" || evtType === "approval_requested";
+                      
+                      return (
+                        <div key={idx} className={`p-3 rounded-xl border text-xs flex flex-col sm:flex-row sm:items-center justify-between gap-2 ${
+                          isWarning ? 'bg-amber-950/20 border-amber-500/30' : 'bg-slate-900/60 border-slate-800'
+                        }`}>
+                          <div className="flex items-center gap-2.5">
+                            <span className="w-5 h-5 rounded-full bg-slate-800 text-slate-300 font-bold text-[10px] flex items-center justify-center flex-shrink-0 border border-slate-700">
+                              {s.step || idx + 1}
+                            </span>
+                            <span className={`px-2 py-0.5 rounded text-[9px] font-bold uppercase ${
+                              evtType === 'conflict_detected' ? 'bg-amber-500/20 text-amber-300' :
+                              evtType === 'approval_requested' ? 'bg-rose-500/20 text-rose-300' :
+                              evtType === 'tool_selected' || evtType === 'tool_executed' ? 'bg-cyan-500/20 text-cyan-300' :
+                              'bg-emerald-500/20 text-emerald-300'
+                            }`}>
+                              {evtType.replace('_', ' ')}
+                            </span>
+                            <span className="text-slate-200 font-medium">{s.action}</span>
+                          </div>
+
+                          {s.tool && (
+                            <span className="px-2 py-0.5 rounded bg-slate-800 text-cyan-300 font-mono text-[10px] border border-slate-700 self-start sm:self-auto">
+                              {s.tool}
+                            </span>
+                          )}
+                        </div>
+                      );
+                    })}
                   </div>
                 </div>
               )}

@@ -177,12 +177,30 @@ def test_agent_activities():
     return activities
 
 def test_approvals():
-    separator("HUMAN APPROVALS API")
+    separator("HUMAN APPROVALS API & TOOL REGISTRY EXECUTION WORKFLOW")
     r = requests.get(f"{BASE_URL}/agent/approvals", timeout=5)
     assert r.status_code == 200, f"Approvals failed: {r.status_code}"
     approvals = r.json()
     pending = [a for a in approvals if a['status'] == 'pending']
     print(f"{OK} Found {len(approvals)} total approvals ({len(pending)} pending)")
+
+    if pending:
+        target = pending[0]
+        app_id = target['id']
+        print(f"  {INFO} Testing Approve & Execute for Approval #{app_id}...")
+
+        # 1. Approve & Execute
+        r_appr = requests.post(f"{BASE_URL}/agent/approvals/{app_id}/approve", timeout=5)
+        assert r_appr.status_code == 200, f"Approve failed: {r_appr.status_code} - {r_appr.text}"
+        res_appr = r_appr.json()
+        assert res_appr['status'] == 'approved', f"Expected status 'approved', got '{res_appr['status']}'"
+        print(f"   {OK} Approval #{app_id} successfully executed via Tool Registry!")
+
+        # 2. Prevent Duplicate Execution Test
+        r_dup = requests.post(f"{BASE_URL}/agent/approvals/{app_id}/approve", timeout=5)
+        assert r_dup.status_code == 400, f"Expected 400 on duplicate approval, got {r_dup.status_code}"
+        print(f"   {OK} Duplicate approval correctly blocked with HTTP 400!")
+
     return approvals
 
 

@@ -77,18 +77,31 @@ export const ApprovalsPage: React.FC<ApprovalsPageProps> = ({ approvals, onRefre
                 <p className="text-xs text-slate-300 mt-1">{appr.description}</p>
               </div>
 
-              {/* Payload Breakdown */}
+              {/* Payload Diff Breakdown */}
               {appr.payload && (
-                <div className="p-3.5 rounded-xl bg-slate-900/90 border border-slate-800 space-y-2 text-xs">
-                  <div className="font-semibold text-slate-400 uppercase text-[10px]">Action Impact Details:</div>
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-slate-300 font-mono">
-                    {Object.entries(appr.payload).map(([k, v]) => (
-                      <div key={k} className="bg-slate-950 p-2 rounded border border-slate-800">
-                        <span className="text-slate-500">{k}: </span>
-                        <span className="text-cyan-300">{String(v)}</span>
-                      </div>
-                    ))}
+                <div className="p-4 rounded-xl bg-slate-900/90 border border-slate-800 space-y-3 text-xs">
+                  <div className="font-semibold text-slate-400 uppercase text-[10px] tracking-wider">Proposed Impact & Change Diff:</div>
+
+                  {/* Side-by-Side Diff */}
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <div className="p-3 rounded-lg bg-rose-950/20 border border-rose-500/20 space-y-1">
+                      <div className="text-[10px] font-bold uppercase text-rose-400">Current State</div>
+                      <div className="text-slate-300 font-medium">{appr.payload.current_state || "Existing calendar schedule allocation"}</div>
+                    </div>
+
+                    <div className="p-3 rounded-lg bg-emerald-950/20 border border-emerald-500/20 space-y-1">
+                      <div className="text-[10px] font-bold uppercase text-emerald-400">Proposed Change</div>
+                      <div className="text-slate-200 font-bold">{appr.payload.proposed_change || appr.payload.proposed_slot || "Shift study block"}</div>
+                    </div>
                   </div>
+
+                  {/* Reason Banner */}
+                  {appr.payload.reason && (
+                    <div className="p-2.5 rounded-lg bg-indigo-500/10 border border-indigo-500/20 text-indigo-300 flex items-center gap-2 text-xs">
+                      <span className="font-bold text-[10px] uppercase text-indigo-400">Reason:</span>
+                      <span>{appr.payload.reason}</span>
+                    </div>
+                  )}
                 </div>
               )}
 
