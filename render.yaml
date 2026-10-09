@@ -17,7 +17,6 @@ services:
   - type: web
     name: studyops-frontend
     env: static
-    plan: free
     rootDir: frontend
     buildCommand: npm run build
     staticPublishPath: dist
