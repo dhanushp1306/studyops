@@ -141,25 +141,64 @@ npm run dev
 
 ---
 
-## 🌐 Public 1-Click Render Deployment Guide
+## 🌐 Public Render Deployment & Live Demo Links
 
-`studyops` includes a pre-configured **Render Blueprint** (`render.yaml`) that automatically deploys both the FastAPI Backend and React Frontend:
+`studyops` is deployed on Render via blueprint (`render.yaml`). You can test it live without local installation:
 
-1. **Push your code to GitHub**:
-   ```bash
-   git add .
-   git commit -m "feat: add render blueprint"
-   git push origin main
-   ```
+- 🚀 **Live Web App**: [https://studyops-frontend.onrender.com](https://studyops-frontend.onrender.com)
+- ⚙️ **Live Backend API**: [https://studyops-backend.onrender.com/api](https://studyops-backend.onrender.com/api)
+- 📖 **Interactive OpenAPI Docs**: [https://studyops-backend.onrender.com/docs](https://studyops-backend.onrender.com/docs)
 
-2. **Deploy on Render**:
-   - Go to [render.com](https://render.com/) and sign in.
-   - Click **New +** -> Select **Blueprints**.
-   - Connect your `studyops` GitHub repository.
-   - Render will automatically detect `render.yaml` and provision both `studyops-backend` and `studyops-frontend` automatically!
-   - Click **Apply**!
+### ⚡ Populating Live Data (1-Click Seed)
+When inspecting a fresh deployment, populate sample CS courses (DAA, DBMS, OS, ML), upcoming deadlines, calendar timetable blocks, study plans, agent traces, and pending human approvals instantly via:
+```bash
+curl -X POST https://studyops-backend.onrender.com/api/seed
+```
+*(Or navigate to `/docs`, click `POST /api/seed` $\rightarrow$ **Try it out** $\rightarrow$ **Execute**)*.
 
-Frontend application will run at: `http://localhost:5173`
+---
+
+## 🚀 Quick Setup & Run Guide (Local Development)
+
+### Prerequisites
+- **Node.js**: v18+
+- **Python**: 3.10+
+
+### 1. Backend Setup
+
+```bash
+cd backend
+
+# Create & activate virtual environment
+python -m venv .venv
+# Windows:
+.\.venv\Scripts\activate
+# Mac/Linux:
+source .venv/bin/activate
+
+# Install dependencies
+pip install -r requirements.txt
+
+# Run backend server (Default port 8001)
+python -m uvicorn app.main:app --host 0.0.0.0 --port 8001 --reload
+```
+
+Backend API will run at: `http://localhost:8001/api`  
+Interactive OpenAPI Docs: `http://localhost:8001/docs`
+
+### 2. Frontend Setup
+
+```bash
+cd frontend
+
+# Install dependencies
+npm install
+
+# Start Vite dev server
+npm run dev
+```
+
+Frontend application will run locally at: `http://localhost:5173`
 
 ---
 
