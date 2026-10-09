@@ -24,6 +24,10 @@ class AgentRunResponse(BaseModel):
 class AgentOrchestrator:
     def run(self, user_request: str, db: Session) -> AgentRunResponse:
         start_time = time.time()
+        # Input sanity length limit
+        if user_request and len(user_request) > 1000:
+            user_request = user_request[:1000]
+
         run_id = f"run-{uuid.uuid4().hex[:8]}"
 
         observable_actions: List[str] = []
@@ -274,8 +278,9 @@ class AgentOrchestrator:
             if pending_list:
                 # Calculate priority for top pending tasks dynamically
                 task_priorities = []
+                workload_cnt = len(pending_list)
                 for t in pending_list:
-                    p_res = registry.execute("calculate_priority", db, {"task_id": t["id"]})
+                    p_res = registry.execute("calculate_priority", db, {"task_id": t["id"], "workload_count": workload_cnt})
                     p_data = p_res.data or {}
                     task_priorities.append((p_data.get("calculated_score", 50.0), t, p_data))
 

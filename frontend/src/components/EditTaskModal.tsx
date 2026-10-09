@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { X, Save, Clock, Percent, AlertCircle } from 'lucide-react';
 import { Task, Subject, PriorityLevel, TaskStatus } from '../types';
 import { studyopsApi } from '../api/client';
@@ -18,6 +18,21 @@ export const EditTaskModal: React.FC<EditTaskModalProps> = ({
   onClose,
   onSuccess
 }) => {
+  const titleInputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    if (!isOpen || !task) return;
+    const timer = setTimeout(() => titleInputRef.current?.focus(), 50);
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') onClose();
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => {
+      clearTimeout(timer);
+      window.removeEventListener('keydown', handleKeyDown);
+    };
+  }, [isOpen, task, onClose]);
+
   if (!isOpen || !task) return null;
 
   const [title, setTitle] = useState(task.title);
@@ -66,15 +81,21 @@ export const EditTaskModal: React.FC<EditTaskModalProps> = ({
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-sm animate-fade-in">
+    <div 
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="edit-task-title"
+      className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-sm animate-fade-in"
+    >
       <div className="glass-panel w-full max-w-lg p-6 rounded-2xl border-slate-700 bg-slate-900 shadow-2xl space-y-5">
         <div className="flex items-center justify-between border-b border-slate-800 pb-3">
-          <h3 className="font-heading font-bold text-lg text-slate-100 flex items-center gap-2">
+          <h3 id="edit-task-title" className="font-heading font-bold text-lg text-slate-100 flex items-center gap-2">
             <Save className="w-5 h-5 text-emerald-400" />
             <span>Edit Assignment & Progress</span>
           </h3>
           <button
             onClick={onClose}
+            aria-label="Close dialog"
             className="p-1.5 rounded-lg hover:bg-slate-800 text-slate-400 hover:text-white transition-colors"
           >
             <X className="w-5 h-5" />
@@ -91,6 +112,7 @@ export const EditTaskModal: React.FC<EditTaskModalProps> = ({
           <div>
             <label className="text-xs font-semibold text-slate-300 block mb-1">Title *</label>
             <input
+              ref={titleInputRef}
               type="text"
               required
               value={title}

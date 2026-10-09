@@ -2,6 +2,7 @@ from typing import List, Optional
 from datetime import datetime, timedelta
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy.orm import Session
+from sqlalchemy import func, case
 from app.database import get_db
 from app.models import Task, Subject, CalendarEvent, StudyPlan, AgentApproval
 from app.schemas import TaskResponse, TaskCreate, TaskUpdate, DashboardStatsResponse
@@ -97,21 +98,38 @@ def get_dashboard_stats(db: Session = Depends(get_db)):
     today_start = datetime(now.year, now.month, now.day)
     today_end = today_start + timedelta(days=1)
 
-    total_tasks = db.query(Task).count()
-    pending_tasks = db.query(Task).filter(Task.status.in_(["pending", "in_progress"])).count()
-    high_priority_tasks = db.query(Task).filter(Task.priority == "high", Task.status != "completed").count()
-    completed_tasks = db.query(Task).filter(Task.status == "completed").count()
+    # 1. Consolidated Task Stats (1 query instead of 4 separate table scans)
+    task_stats = db.query(
+        func.count(Task.id).label("total_tasks"),
+        func.sum(case((Task.status.in_(["pending", "in_progress"]), 1), else_=0)).label("pending_tasks"),
+        func.sum(case(((Task.priority == "high") & (Task.status != "completed"), 1), else_=0)).label("high_priority_tasks"),
+        func.sum(case((Task.status == "completed", 1), else_=0)).label("completed_tasks")
+    ).first()
+
+    total_tasks = int(task_stats.total_tasks or 0) if task_stats else 0
+    pending_tasks = int(task_stats.pending_tasks or 0) if task_stats else 0
+    high_priority_tasks = int(task_stats.high_priority_tasks or 0) if task_stats else 0
+    completed_tasks = int(task_stats.completed_tasks or 0) if task_stats else 0
     
-    upcoming_today = db.query(CalendarEvent).filter(
+    # 2. Upcoming events count today
+    upcoming_today = db.query(func.count(CalendarEvent.id)).filter(
         CalendarEvent.start_time >= today_start,
         CalendarEvent.start_time < today_end
-    ).count()
+    ).scalar() or 0
 
-    plans = db.query(StudyPlan).all()
-    weekly_planned = sum(p.target_hours_per_week for p in plans)
-    weekly_completed = sum(p.completed_hours for p in plans)
+    # 3. Study plans SQL sum (without pulling rows into Python memory)
+    plan_stats = db.query(
+        func.sum(StudyPlan.target_hours_per_week).label("planned"),
+        func.sum(StudyPlan.completed_hours).label("completed")
+    ).first()
 
-    pending_approvals = db.query(AgentApproval).filter(AgentApproval.status == "pending").count()
+    weekly_planned = float(plan_stats.planned or 0.0) if plan_stats else 0.0
+    weekly_completed = float(plan_stats.completed or 0.0) if plan_stats else 0.0
+
+    # 4. Pending approvals count
+    pending_approvals = db.query(func.count(AgentApproval.id)).filter(
+        AgentApproval.status == "pending"
+    ).scalar() or 0
 
     return {
         "total_tasks": total_tasks,

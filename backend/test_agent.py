@@ -58,10 +58,12 @@ def test_get_tasks():
 
 def test_dashboard_stats():
     separator("DASHBOARD STATS API")
+    t0 = datetime.now()
     r = requests.get(f"{BASE_URL}/dashboard/stats", timeout=5)
+    ms = int((datetime.now() - t0).total_seconds() * 1000)
     assert r.status_code == 200, f"Stats failed: {r.status_code}"
     stats = r.json()
-    print(f"{OK} Dashboard stats retrieved:")
+    print(f"{OK} Dashboard stats retrieved in {ms}ms:")
     for k, v in stats.items():
         print(f"   {k}: {v}")
     return stats

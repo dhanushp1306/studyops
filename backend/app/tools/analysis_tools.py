@@ -10,6 +10,7 @@ class CalculatePriorityArgs(BaseModel):
     task_id: Optional[int] = Field(None, description="ID of existing task to calculate priority for")
     deadline: Optional[datetime] = Field(None, description="Deadline if evaluating hypothetical task")
     estimated_effort: Optional[float] = Field(2.0, description="Effort hours if evaluating hypothetical task")
+    workload_count: Optional[int] = Field(None, description="Optional pre-calculated pending task count for loop optimization")
 
 class CalculatePriorityTool(BaseTool):
     name = "calculate_priority"
@@ -57,7 +58,10 @@ class CalculatePriorityTool(BaseTool):
         importance_factor = subject_importance * 7.5
 
         # 4. Total Current Workload Factor (0 - 15)
-        pending_count = db.query(Task).filter(Task.status.in_(["pending", "in_progress"])).count()
+        if args.workload_count is not None:
+            pending_count = args.workload_count
+        else:
+            pending_count = db.query(Task).filter(Task.status.in_(["pending", "in_progress"])).count()
         workload_factor = min(15.0, pending_count * 2.5)
 
         # Combine into multi-factor priority score (0 - 100)

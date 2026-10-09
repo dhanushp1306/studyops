@@ -52,6 +52,8 @@ $$\text{Priority Score} = f(\text{Deadline Urgency}, \text{Remaining Effort}, \t
    Displays `request_received`, `tool_selected`, `tool_executed`, `tool_result`, `conflict_detected`, `approval_requested`, `action_completed`.
 5. **AI-Judge Discoverability**:
    1-click Suggested Prompts pill bar on the Agent Hub page.
+6. **High-Performance & Accessible Design**:
+   Consolidated SQL aggregations (`func.sum(case(...))`), low-latency API response times, and WCAG modal accessibility (`role="dialog"`, `aria-modal="true"`, focus placement, and `Escape` key handlers).
 
 ---
 
