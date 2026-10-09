@@ -24,5 +24,6 @@ services:
         fromService:
           type: web
           name: studyops-backend
-          property: url
+          property: host
+        prefix: https://
         suffix: /api
