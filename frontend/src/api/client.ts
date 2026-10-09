@@ -1,14 +1,25 @@
 import axios from 'axios';
 import { Subject, Task, CalendarEvent, StudySession, StudyPlan, AgentActivity, AgentApproval, DashboardStats } from '../types';
 
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8001/api';
+const getApiBaseUrl = () => {
+  const envUrl = import.meta.env.VITE_API_BASE_URL;
+  if (envUrl && envUrl.startsWith('http://') || (envUrl && envUrl.startsWith('https://'))) {
+    return envUrl;
+  }
+  if (typeof window !== 'undefined' && window.location.hostname.includes('render.com')) {
+    return 'https://studyops-backend.onrender.com/api';
+  }
+  return 'http://localhost:8001/api';
+};
+
+export const API_BASE_URL = getApiBaseUrl();
 
 export const api = axios.create({
   baseURL: API_BASE_URL,
   headers: {
     'Content-Type': 'application/json',
   },
-  timeout: 8000,
+  timeout: 15000,
 });
 
 export const studyopsApi = {
