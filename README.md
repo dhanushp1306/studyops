@@ -139,6 +139,26 @@ npm install
 npm run dev
 ```
 
+---
+
+## 🌐 Public 1-Click Render Deployment Guide
+
+`studyops` includes a pre-configured **Render Blueprint** (`render.yaml`) that automatically deploys both the FastAPI Backend and React Frontend:
+
+1. **Push your code to GitHub**:
+   ```bash
+   git add .
+   git commit -m "feat: add render blueprint"
+   git push origin main
+   ```
+
+2. **Deploy on Render**:
+   - Go to [render.com](https://render.com/) and sign in.
+   - Click **New +** -> Select **Blueprints**.
+   - Connect your `studyops` GitHub repository.
+   - Render will automatically detect `render.yaml` and provision both `studyops-backend` and `studyops-frontend` automatically!
+   - Click **Apply**!
+
 Frontend application will run at: `http://localhost:5173`
 
 ---
