@@ -217,11 +217,9 @@ Tests Passed: 9/9 (Covering 10 AI-judge scenarios)
 [PASS] ALL TESTS PASSED!
 ```
 
----
+## 🎯 Sample Agent Prompts
 
-## 🎯 Sample Prompts for AI Judges
-
-Try these 1-click prompts on the **AI Agent Hub** page (`http://localhost:5173/agent`):
+Try these 1-click prompts directly on the **AI Agent Hub** page ([https://studyops-frontend.onrender.com](https://studyops-frontend.onrender.com) or local `http://localhost:5173`):
 
 1. **Proactive Recommendation**: *"What should I do now?"*
 2. **Assignment & Scheduling**: *"Add my DAA assignment due Friday. It will take 3 hours."*
@@ -231,6 +229,5 @@ Try these 1-click prompts on the **AI Agent Hub** page (`http://localhost:5173/a
 
 ---
 
-## 🏆 Hackathon Context
-Built for **Hack2Skill AI Hackathon - AI Personal Assistant & Autonomous Agents Track**.  
-Represents a production-ready, lightweight codebase (< 1 MB tracked) demonstrating real autonomous decision making, tool boundaries, human-in-the-loop safety, and explainability.
+## 💡 Overview & Architecture Summary
+`studyops` represents a production-ready, lightweight codebase (< 1 MB source tracked) demonstrating real autonomous decision making, controlled tool boundaries, human-in-the-loop safety, and full execution explainability.
